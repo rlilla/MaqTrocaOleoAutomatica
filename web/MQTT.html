@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MQTT</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/eel.js"></script>
+</head>
+<body>
+
+
+    <script>
+    	// Inicializacao das variaveis globais
+        var comandos={}
+        comandos["auto"] = false
+        comandos["manual"] = false
+        comandos["semi"] = false
+        comandos["ligaValvEnt"] = false
+        comandos["ligaValvSaida"] = false
+        comandos["iniAuto"] = false
+        comandos["simula"] = false
+        comandos["interrompe"] = false
+        comandos["iniSemiEnt"] = false
+        comandos["iniSemiSaida"] = false
+        var parametrosAtuais = {}
+
+		// Funcao para ler os valores atuais e atualizar a tela
+        function lerValores(){
+            eel.valorAtual()((retorno)=> {
+                document.getElementById("volEntradaAtual").innerHTML = retorno["volEntrada"].toFixed(2);
+                document.getElementById("volSaidaAtual").innerHTML = retorno["volSaida"].toFixed(2);
+                document.getElementById("diferencaAtual").innerHTML = retorno["diferenca"].toFixed(2);
+                document.getElementById("temperaturaAtual").innerHTML = retorno["temp"].toFixed(2);
+                document.getElementById("modoAtual").innerHTML = retorno["modo"];
+                parametrosAtuais["volEntrada"] = retorno["parVolEntrada"];
+                parametrosAtuais["volSaida"] = retorno["parVolSaida"];
+                parametrosAtuais["diferenca"] = retorno["parDiferenca"];
+                parametrosAtuais["temperatura"] = retorno["parTemp"];
+                console.log(retorno)
+            })
+        }
+        // Apos conectar com o MQTT, habilita leitura ciclica dos valores atuais
+        eel.conectar()(() => {
+            setInterval(lerValores,1000)
+        })
+
+		// Funcao para alterar o modo de operacao
+        function alteraModo(modo){
+            switch(modo){
+                case 0:
+                    comandos["auto"] = false;
+                    comandos["manual"] = true;
+                    comandos["semi"] = false;
+                    break;
+                case 1:
+                    comandos["auto"] = true;
+                    comandos["manual"] = false;
+                    comandos["semi"] = false;
+                    break;
+                case 2:
+                    comandos["auto"] = false;
+                    comandos["manual"] = false;
+                    comandos["semi"] = true;
+                    break;
+                default:
+                    comandos["auto"] = false
+                    comandos["manual"] = false
+                    comandos["semi"] = false
+            }
+                eel.publicaComandos(comandos);
+        }
+
+        // Funcao para acionar ou desacionar a valvula de entrada
+        function valvulaEntrada(estado){
+            if(estado==1) comandos["ligaValvEnt"] = true
+            if(estado==0) comandos["ligaValvEnt"] = false
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para acionar ou desacionar a valvula de entrada
+        function valvulaSaida(estado){
+            if(estado==1) comandos["ligaValvSaida"] = true
+            if(estado==0) comandos["ligaValvSaida"] = false
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para iniciar o modo Automatico
+        function iniciaAuto(){
+            comandos["iniAuto"] = true;
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para habilitar simulacao
+        function simulacao(estado){
+            if(estado==1) comandos["simula"] = true
+            if(estado==0) comandos["simula"] = false
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para interromper o passo
+        function interrompe(){
+            comandos["interrompe"] = true
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para habilitar semi automatico de entrada
+        function semiEntrada(estado){
+            if(estado==1) comandos["iniSemiEnt"] = true
+            if(estado==0) comandos["iniSemiEnt"] = false
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para habilitar semi automatico de saida
+        function semiSaida(estado){
+            if(estado==1) comandos["iniSemiSaida"] = true
+            if(estado==0) comandos["iniSemiSaida"] = false
+            eel.publicaComandos(comandos);
+        }
+
+        // Funcao para enviar parametros ao ESP32
+        function enviarParametro(){
+            var parametros={};
+            parametros["volEntrada"] = Number(document.getElementById("volEntrada").value);
+            parametros["volSaida"] = Number(document.getElementById("volSaidaIni").value);
+            parametros["diferenca"] = Number(document.getElementById("diferenca").value);
+            parametros["temp"] = Number(document.getElementById("temperatura").value);
+            eel.publicaParametros(parametros);
+        }
+
+        // Funcao para receber parametros do ESP32
+        function lerParametro(){
+            document.getElementById("volEntrada").value = parametrosAtuais["volEntrada"];
+            document.getElementById("volSaidaIni").value = parametrosAtuais["volSaida"];
+            document.getElementById("diferenca").value = parametrosAtuais["diferenca"];
+            document.getElementById("temperatura").value = parametrosAtuais["temperatura"];
+        }
+    </script>
+<nav class="navbar navbar-expand-sm bg-dark navbar-light">
+    <ul class="navbar-nav">
+        <a class="navbar-brand">SmartLub</a>
+    </ul>
+</nav>
+<div class="row bg-dark text-white pl-3">
+    <div class="col">
+		Volume de Entrada<BR>
+		<INPUT TYPE=TEXT id="volEntrada"><BR>
+		Volume inicial de saída<BR>
+		<INPUT TYPE=TEXT id="volSaidaIni"><BR>
+		Diferença Máxima<BR>
+		<INPUT TYPE=TEXT id="diferenca"><BR>
+		Temperatura<BR>
+		<INPUT TYPE=TEXT id="temperatura"><BR><BR><BR>
+		<INPUT TYPE=button class="btn btn-warning" value="ENVIAR" onclick="enviarParametro()"> &nbsp;
+		<INPUT TYPE=button class="btn btn-warning" value="RECEBER" onclick="lerParametro()"><BR><BR>
+		<BR><BR>
+	</div>
+    <div class="col">
+		<BR><BR><BR>
+		<p id="modoAtual" style="font-size:48px">SEM MODO</p>
+	</div>
+    <div class="col">
+		Volume Entrada Atual
+		<p id="volEntradaAtual">???????</p>
+		Volume Saída Atual
+		<p id="volSaidaAtual">???????</p>
+		Diferença Atual
+		<p id="diferencaAtual">???????</p>
+		Temperatura Atual
+		<p id="temperaturaAtual">???????</p>
+	</div>
+</div>
+<div class="row bg-dark">
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Manual" onclick="alteraModo(0)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Abre Válvula Entrada" onclick="valvulaEntrada(1)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Fecha Válvula Entrada" onclick="valvulaEntrada(0)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Abre Válvula Saída" onclick="valvulaSaida(1)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Fecha Válvula Saída" onclick="valvulaSaida(0)">
+	</div>
+</div>
+<div class="row bg-dark">
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Auto" onclick="alteraModo(1)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Iniciar Auto" onclick="iniciaAuto()">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Habilita Simulacao" onclick="simulacao(1)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Desabilita Simulacao" onclick="simulacao(0)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Interrompe" onclick="interrompe()">
+	</div>
+</div>
+<div class="row bg-dark">
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Semi Auto" onclick="alteraModo(2)">
+	</div>
+	<div class="col-sm">
+		<INPUT TYPE=button class="btn btn-primary" value="Iniciar Semi Entrada" onclick="semiEntrada(1)">
+	</div>
+	<div class="col-sm">
+        <INPUT TYPE=button class="btn btn-primary" value="Finaliza Semi Entrada" onclick="semiEntrada(0)">
+	</div>
+	<div class="col-sm">
+        <INPUT TYPE=button class="btn btn-primary" value="Iniciar Semi Saida" onclick="semiSaida(1)">
+	</div>
+	<div class="col-sm">
+        <INPUT TYPE=button class="btn btn-primary" value="Finaliza Semi Saida" onclick="semiSaida(0)">
+	</div>
+</div>
+</body>
+</html>
